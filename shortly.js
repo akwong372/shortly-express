@@ -50,7 +50,9 @@ function(req, res) {
   }
 
   new Link({ url: uri }).fetch().then(function(found) {
+    console.log('found', found);
     if (found) {
+      // console.log('found', found.attributes.code);
       res.status(200).send(found.attributes);
     } else {
       util.getUrlTitle(uri, function(err, title) {
@@ -65,6 +67,7 @@ function(req, res) {
           baseUrl: req.headers.origin
         })
         .then(function(newLink) {
+          console.log('newLink', newLink);
           res.status(200).send(newLink);
         });
       });
