@@ -174,7 +174,7 @@ describe('', function() {
           title: 'Funny pictures of animals, funny dog pictures',
           baseUrl: 'http://127.0.0.1:4568'
         });
-        console.log('link-----', link)
+        console.log('link-----', link);
         link.save().then(function() {
           done();
         });

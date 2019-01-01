@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var bcrypt = require('bcrypt-nodejs');
+var session = require('express-session');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -19,61 +20,129 @@ app.use(partials());
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
 // Parse forms (signup/login)
+app.use(session({
+  secret: 'secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {}
+}));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/create', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/links', 
-function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
+app.get('/',
+  function (req, res) {
+    res.render('index');
   });
-});
 
-app.post('/links', 
-function(req, res) {
-  var uri = req.body.url;
+app.get('/create',
+  function (req, res) {
+    res.render('index');
+  });
 
-  if (!util.isValidUrl(uri)) {
-    console.log('Not a valid url: ', uri);
-    return res.sendStatus(404);
-  }
+app.get('/login',
+  function (req, res) {
+    res.render('login');
+  });
 
-  new Link({ url: uri }).fetch().then(function(found) {
-    console.log('found', found);
-    if (found) {
-      // console.log('found', found.attributes.code);
-      res.status(200).send(found.attributes);
-    } else {
-      util.getUrlTitle(uri, function(err, title) {
-        if (err) {
-          console.log('Error reading URL heading: ', err);
-          return res.sendStatus(404);
-        }
+app.post('/login', function (req, res) {
+  console.log(req.body);
+  var username = req.body.username;
+  var enteredPass = req.body.password;
 
-        Links.create({
-          url: uri,
-          title: title,
-          baseUrl: req.headers.origin
-        })
-        .then(function(newLink) {
-          console.log('newLink', newLink);
-          res.status(200).send(newLink);
+  new User({ username: username }).fetch()
+    .then(function (found) {
+      if (found) {
+        console.log('found user');
+
+        bcrypt.hash(req.body.password, null, null, function (err, hash) {
+
+          bcrypt.compare(hash, found.get('password'), function (err, results) {
+            console.log('enteredPass', enteredPass);
+            if (results) {
+              req.session.regenerate(function () {
+                res.redirect('/');
+                req.session.found = found.username;
+              });
+            } else {
+              console.log('password does not match');
+              res.redirect('/signup');
+            }
+          });
+          
         });
-      });
-    }
+
+      } else {
+        console.log('username did not match, redirecting to signup');
+        res.redirect('/signup');
+      }
+    });
+})
+
+app.get('/signup',
+  function (req, res) {
+    res.render('signup');
   });
+
+app.post('/signup', function (req, res) {
+  var username = req.body.username;
+  bcrypt.hash(req.body.password, null, null, function (err, hash) {
+
+    if (err) {
+      console.log('error', err);
+    }
+    var user = new User({ username: username, password: hash });
+    user.save()
+      .then(function () {
+        req.session.regenerate(function () {
+          res.redirect('/');
+          req.session.user = user;
+        })
+      })
+  })
 });
+
+app.get('/links',
+  function (req, res) {
+    Links.reset().fetch().then(function (links) {
+      res.status(200).send(links.models);
+    });
+  });
+
+app.post('/links',
+  function (req, res) {
+    var uri = req.body.url;
+
+    if (!util.isValidUrl(uri)) {
+      console.log('Not a valid url: ', uri);
+      return res.sendStatus(404);
+    }
+
+    new Link({ url: uri }).fetch().then(function (found) {
+      console.log('found', found);
+      if (found) {
+        // console.log('found', found.attributes.code);
+        res.status(200).send(found.attributes);
+      } else {
+        util.getUrlTitle(uri, function (err, title) {
+          if (err) {
+            console.log('Error reading URL heading: ', err);
+            return res.sendStatus(404);
+          }
+
+          Links.create({
+            url: uri,
+            title: title,
+            baseUrl: req.headers.origin
+          })
+            .then(function (newLink) {
+              console.log('newLink', newLink);
+              res.status(200).send(newLink);
+            });
+        });
+      }
+    });
+  });
 
 /************************************************************/
 // Write your authentication routes here
@@ -87,8 +156,8 @@ function(req, res) {
 // If the short-code doesn't exist, send the user to '/'
 /************************************************************/
 
-app.get('/*', function(req, res) {
-  new Link({ code: req.params[0] }).fetch().then(function(link) {
+app.get('/*', function (req, res) {
+  new Link({ code: req.params[0] }).fetch().then(function (link) {
     if (!link) {
       res.redirect('/');
     } else {
@@ -96,9 +165,9 @@ app.get('/*', function(req, res) {
         linkId: link.get('id')
       });
 
-      click.save().then(function() {
+      click.save().then(function () {
         link.set('visits', link.get('visits') + 1);
-        link.save().then(function() {
+        link.save().then(function () {
           return res.redirect(link.get('url'));
         });
       });
