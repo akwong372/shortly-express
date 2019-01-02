@@ -24,18 +24,18 @@ app.use(session({
   secret: 'arandomstring',
   resave: false,
   saveUninitialized: false,
-  cookie: {expires: 600000}
+  cookie: { expires: 600000 }
 }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-var checkUser = function(session) {
+var checkUser = function (session) {
   if (session.user) {
     return true;
   } else {
     return false;
   }
-}
+};
 
 app.get('/',
   function (req, res) {
@@ -54,7 +54,6 @@ app.get('/create',
       res.render('login');
     }
   });
-
 
 app.get('/links',
   function (req, res) {
@@ -121,11 +120,9 @@ app.post('/login', function (req, res) {
       if (found) {
         console.log('found user');
 
-        //bcrypt.hash(req.body.password, null, null, function (err, hash) {
         bcrypt.compare(enteredPass, found.get('password'), function (err, results) {
           console.log('enteredPass', enteredPass);
           console.log('databasePass', found.get('password'));
-          //console.log('hashPass', hash) ;
           if (results) {
             req.session.regenerate(function () {
               req.session.user = username;
@@ -135,8 +132,6 @@ app.post('/login', function (req, res) {
             console.log('password does not match');
             res.redirect('/signup');
           }
-          //});
-
         });
 
       } else {
@@ -159,25 +154,15 @@ app.post('/signup', function (req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  // bcrypt.genSalt(10, function (err, salt) {
-  //   bcrypt.hash(req.body.password, salt, null, function (err, hash) {
-
-  //     if (err) {
-  //       console.log('error', err);
-  //     }
-      var user = new User({ username: username, password: password });
-      user.save()
-        .then(function () {
-          req.session.regenerate(function () {
-            req.session.user = user;
-            res.redirect('/');
-            console.log('userfrompost',req.session.user);
-          });
-        });
+  var user = new User({ username: username, password: password });
+  user.save()
+    .then(function () {
+      req.session.regenerate(function () {
+        req.session.user = user;
+        res.redirect('/');
+      });
     });
-  // });
-// }
-// );
+});
 
 
 /************************************************************/
