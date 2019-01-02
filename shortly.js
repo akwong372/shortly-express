@@ -42,7 +42,7 @@ app.get('/',
     if (checkUser(req.session)) {
       res.render('index');
     } else {
-      res.render('login');
+      res.redirect('/login');
     }
   });
 
@@ -51,15 +51,20 @@ app.get('/create',
     if (checkUser(req.session)) {
       res.render('index');
     } else {
-      res.render('login');
+      res.redirect('/login');
     }
   });
 
 app.get('/links',
   function (req, res) {
-    Links.reset().fetch().then(function (links) {
-      res.status(200).send(links.models);
-    });
+    if (checkUser(req.session)) {
+      Links.reset().fetch().then(function (links) {
+        res.status(200).send(links.models);
+      });
+    } else {
+      res.redirect('/login');
+    }
+    
   });
 
 app.post('/links',
@@ -72,7 +77,7 @@ app.post('/links',
     }
 
     new Link({ url: uri }).fetch().then(function (found) {
-      console.log('found', found);
+      // console.log('found', found);
       if (found) {
         // console.log('found', found.attributes.code);
         res.status(200).send(found.attributes);
@@ -100,6 +105,19 @@ app.post('/links',
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+app.post('/',
+  function (req, res) {
+    if (checkUser(req.session)) {
+      req.session.destroy(function(err) {
+        if (err) {
+          console.log('err', err);
+        }
+      });
+      res.render('login');
+    } else {
+      res.render('login');
+    }
+  });
 
 app.get('/login',
   function (req, res) {
@@ -111,7 +129,7 @@ app.get('/login',
   });
 
 app.post('/login', function (req, res) {
-  console.log(req.body);
+  // console.log(req.body);
   var username = req.body.username;
   var enteredPass = req.body.password;
 
@@ -121,8 +139,8 @@ app.post('/login', function (req, res) {
         console.log('found user');
 
         bcrypt.compare(enteredPass, found.get('password'), function (err, results) {
-          console.log('enteredPass', enteredPass);
-          console.log('databasePass', found.get('password'));
+          // console.log('enteredPass', enteredPass);
+          // console.log('databasePass', found.get('password'));
           if (results) {
             req.session.regenerate(function () {
               req.session.user = username;
@@ -130,13 +148,13 @@ app.post('/login', function (req, res) {
             });
           } else {
             console.log('password does not match');
-            res.redirect('/signup');
+            res.redirect('/login');
           }
         });
 
       } else {
         console.log('username did not match, redirecting to signup');
-        res.redirect('/signup');
+        res.redirect('/login');
       }
     });
 });
@@ -146,7 +164,7 @@ app.get('/signup',
     if (checkUser(req.session)) {
       res.redirect('/');
     } else {
-      res.render('signup');
+      res.redirect('/login');
     }
   });
 

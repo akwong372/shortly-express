@@ -14,7 +14,7 @@ var Link = require('../app/models/link');
 // Remove the 'x' from beforeEach block when working on
 // authentication tests.
 /************************************************************/
-var beforeEach = function() {};
+var xbeforeEach = function() {};
 /************************************************************/
 
 
@@ -191,9 +191,12 @@ describe('', function() {
         };
 
         requestWithSession(options, function(error, res, body) {
-          // console.log('res.body', res.body.code);
+          if (error) {
+            console.log('error', error);
+          }
+          console.log('res.body---------', res.body.code);
           var code = res.body.code;
-          // console.log('link', link);
+          //console.log('link---', urls);
           expect(code).to.equal(link.get('code'));
           done();
         });
