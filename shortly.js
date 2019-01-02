@@ -21,86 +21,40 @@ app.use(partials());
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(session({
-  secret: 'secret',
+  secret: 'arandomstring',
   resave: false,
-  saveUninitialized: true,
-  cookie: {}
+  saveUninitialized: false,
+  cookie: {expires: 600000}
 }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+var checkUser = function(session) {
+  if (session.user) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
 app.get('/',
   function (req, res) {
-    res.render('index');
+    if (checkUser(req.session)) {
+      res.render('index');
+    } else {
+      res.render('login');
+    }
   });
 
 app.get('/create',
   function (req, res) {
-    res.render('index');
-  });
-
-app.get('/login',
-  function (req, res) {
-    res.render('login');
-  });
-
-app.post('/login', function (req, res) {
-  console.log(req.body);
-  var username = req.body.username;
-  var enteredPass = req.body.password;
-
-  new User({ username: username }).fetch()
-    .then(function (found) {
-      if (found) {
-        console.log('found user');
-
-        bcrypt.hash(req.body.password, null, null, function (err, hash) {
-
-          bcrypt.compare(hash, found.get('password'), function (err, results) {
-            console.log('enteredPass', enteredPass);
-            if (results) {
-              req.session.regenerate(function () {
-                res.redirect('/');
-                req.session.found = found.username;
-              });
-            } else {
-              console.log('password does not match');
-              res.redirect('/signup');
-            }
-          });
-          
-        });
-
-      } else {
-        console.log('username did not match, redirecting to signup');
-        res.redirect('/signup');
-      }
-    });
-})
-
-app.get('/signup',
-  function (req, res) {
-    res.render('signup');
-  });
-
-app.post('/signup', function (req, res) {
-  var username = req.body.username;
-  bcrypt.hash(req.body.password, null, null, function (err, hash) {
-
-    if (err) {
-      console.log('error', err);
+    if (checkUser(req.session)) {
+      res.render('index');
+    } else {
+      res.render('login');
     }
-    var user = new User({ username: username, password: hash });
-    user.save()
-      .then(function () {
-        req.session.regenerate(function () {
-          res.redirect('/');
-          req.session.user = user;
-        })
-      })
-  })
-});
+  });
+
 
 app.get('/links',
   function (req, res) {
@@ -148,6 +102,82 @@ app.post('/links',
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/login',
+  function (req, res) {
+    if (checkUser(req.session)) {
+      res.redirect('/');
+    } else {
+      res.render('login');
+    }
+  });
+
+app.post('/login', function (req, res) {
+  console.log(req.body);
+  var username = req.body.username;
+  var enteredPass = req.body.password;
+
+  User.where({ username: username }).fetch()
+    .then(function (found) {
+      if (found) {
+        console.log('found user');
+
+        //bcrypt.hash(req.body.password, null, null, function (err, hash) {
+        bcrypt.compare(enteredPass, found.get('password'), function (err, results) {
+          console.log('enteredPass', enteredPass);
+          console.log('databasePass', found.get('password'));
+          //console.log('hashPass', hash) ;
+          if (results) {
+            req.session.regenerate(function () {
+              req.session.user = username;
+              res.redirect('/');
+            });
+          } else {
+            console.log('password does not match');
+            res.redirect('/signup');
+          }
+          //});
+
+        });
+
+      } else {
+        console.log('username did not match, redirecting to signup');
+        res.redirect('/signup');
+      }
+    });
+});
+
+app.get('/signup',
+  function (req, res) {
+    if (checkUser(req.session)) {
+      res.redirect('/');
+    } else {
+      res.render('signup');
+    }
+  });
+
+app.post('/signup', function (req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  // bcrypt.genSalt(10, function (err, salt) {
+  //   bcrypt.hash(req.body.password, salt, null, function (err, hash) {
+
+  //     if (err) {
+  //       console.log('error', err);
+  //     }
+      var user = new User({ username: username, password: password });
+      user.save()
+        .then(function () {
+          req.session.regenerate(function () {
+            req.session.user = user;
+            res.redirect('/');
+            console.log('userfrompost',req.session.user);
+          });
+        });
+    });
+  // });
+// }
+// );
 
 
 /************************************************************/
