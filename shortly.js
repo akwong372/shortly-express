@@ -94,7 +94,7 @@ app.post('/links',
             baseUrl: req.headers.origin
           })
             .then(function (newLink) {
-              console.log('newLink', newLink);
+              // console.log('newLink', newLink);
               res.status(200).send(newLink);
             });
         });
@@ -172,14 +172,22 @@ app.post('/signup', function (req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  var user = new User({ username: username, password: password });
-  user.save()
-    .then(function () {
-      req.session.regenerate(function () {
-        req.session.user = user;
-        res.redirect('/');
-      });
+  User.where({ username: username }).fetch()
+    .then(function (found) {
+      if (!found) {
+        var user = new User({ username: username, password: password });
+        user.save()
+          .then(function () {
+            req.session.regenerate(function () {
+              req.session.user = user;
+              res.redirect('/');
+            });
+          });
+      } else {
+        res.redirect('/login');
+      }
     });
+
 });
 
 
